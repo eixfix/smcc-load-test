@@ -6,9 +6,36 @@ var scenarioOptions = {
   STRESS: { vus: 5, duration: "1m" },
   SOAK: { vus: 3, duration: "2m" },
   SPIKE: { vus: 10, duration: "20s" },
-  CUSTOM: { vus: 100, duration: "1m" }
+  CUSTOM: { vus: 20, duration: "1m" }
 };
+var customVusOverride = Number(__ENV.CUSTOM_VUS ?? "");
+if (!Number.isNaN(customVusOverride) && customVusOverride > 0) {
+  scenarioOptions.CUSTOM = {
+    ...scenarioOptions.CUSTOM,
+    vus: Math.round(customVusOverride)
+  };
+}
+var customDurationOverride = Number(__ENV.CUSTOM_DURATION_SECONDS ?? "");
+if (!Number.isNaN(customDurationOverride) && customDurationOverride > 0) {
+  scenarioOptions.CUSTOM = {
+    ...scenarioOptions.CUSTOM,
+    duration: formatDurationSeconds(Math.round(customDurationOverride))
+  };
+}
 var selectedMode = (__ENV.MODE ?? "SMOKE").toUpperCase();
+function formatDurationSeconds(totalSeconds) {
+  const safeSeconds = Math.max(1, totalSeconds);
+  const minutes = Math.floor(safeSeconds / 60);
+  const seconds = safeSeconds % 60;
+  const parts = [];
+  if (minutes > 0) {
+    parts.push(`${minutes}m`);
+  }
+  if (seconds > 0 || parts.length === 0) {
+    parts.push(`${seconds}s`);
+  }
+  return parts.join("");
+}
 var options = {
   ...scenarioOptions[selectedMode] ?? scenarioOptions.SMOKE,
   thresholds: {

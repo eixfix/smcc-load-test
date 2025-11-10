@@ -1,0 +1,46 @@
+name: Deploy k6 Scripts (staging)
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-k6-staging
+  cancel-in-progress: true
+
+jobs:
+  ship-scripts:
+    runs-on: ubuntu-latest
+    environment: staging
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Package scripts
+        run: |
+          # ship everything (adjust to only scripts/ if you want)
+          tar -czf load-${{ github.sha }}.tgz .
+
+      - name: Prepare SSH
+        run: |
+          install -m 600 -D /dev/null ~/.ssh/id_ed25519
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
+          if [ -n "${{ secrets.SSH_KNOWN_HOSTS }}" ]; then
+            echo "${{ secrets.SSH_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+          else
+            ssh-keyscan -t ed25519 ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
+          fi
+
+      - name: Upload & finalize on server
+        run: |
+          scp load-${{ github.sha }}.tgz ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/tmp/
+          ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
+            "/opt/smcc/finalize_release.sh load-test ${{ github.sha }} /tmp/load-${{ github.sha }}.tgz .env"
+
+      - name: (Optional) Trigger a scenario
+        run: |
+          ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "sudo systemctl start smcc-load-test@example || true"
