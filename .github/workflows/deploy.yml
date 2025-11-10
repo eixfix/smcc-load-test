@@ -23,7 +23,7 @@ jobs:
       - name: Package scripts
         run: |
           # ship everything (adjust to only scripts/ if you want)
-          tar -czf load-${{ github.sha }}.tgz .
+          tar -czf /tmp/load-${{ github.sha }}.tgz .
 
       - name: Prepare SSH
         run: |
@@ -37,7 +37,7 @@ jobs:
 
       - name: Upload & finalize on server
         run: |
-          scp load-${{ github.sha }}.tgz ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/tmp/
+          scp /tmp/load-${{ github.sha }}.tgz ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/tmp/
           ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
             "/opt/smcc/finalize_release.sh load-test ${{ github.sha }} /tmp/load-${{ github.sha }}.tgz .env"
 
